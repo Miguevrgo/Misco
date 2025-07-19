@@ -5,8 +5,8 @@ use crate::{
     stock::Stock,
 };
 
-struct Portfolio {
-    pub stocks: Vec<Stock>,
+pub struct Portfolio {
+    stocks: Vec<Stock>,
 }
 
 impl Portfolio {
@@ -14,7 +14,7 @@ impl Portfolio {
         Self { stocks: Vec::new() }
     }
 
-    pub fn load_stock(ticker: &str, name: &str, path: &Path) {
+    pub fn load_stock(&mut self, ticker: &str, name: &str, path: &Path) {
         let mut rdr = csv::Reader::from_path(path).expect("Invalid path");
         let mut stock = Stock::new(ticker, name);
 
@@ -29,5 +29,12 @@ impl Portfolio {
             );
             stock.push(date, entry);
         }
+
+        self.stocks.push(stock);
+    }
+
+    /// Returns the stock identified by the ticket
+    pub fn stock(&self, ticker: &str) -> Option<&Stock> {
+        self.stocks.iter().find(|stock| stock.ticker == ticker)
     }
 }
