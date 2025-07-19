@@ -27,7 +27,7 @@ impl Stock {
 
 impl std::fmt::Display for Stock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "\x1b[1;33mTicker: {} [{}]", self.ticker, self.name)?;
+        writeln!(f, "\x1b[1;33m\t\t Ticker: {} [{}]", self.ticker, self.name)?;
         writeln!(
             f,
             "\x1b[1;36m     Date        Open |   󰁝 High |    󰁅 Low |   Close"
