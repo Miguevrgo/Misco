@@ -54,7 +54,7 @@ impl Date {
 
 impl std::fmt::Display for Date {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:02}-{:02}-{}", self.year, self.month, self.day)
+        write!(f, "{:04}-{:02}-{}", self.year, self.month, self.day)
     }
 }
 
@@ -132,6 +132,6 @@ mod tests {
     #[test]
     fn test_date_display() {
         let date = Date::new(2024, 7, 19);
-        assert_eq!(format!("{}", date), "2024-07-19");
+        assert_eq!(format!("{date}"), "2024-07-19");
     }
 }
