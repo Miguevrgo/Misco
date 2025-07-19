@@ -1,3 +1,4 @@
+mod entry;
 mod stock;
 
 fn main() {
