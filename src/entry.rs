@@ -9,38 +9,6 @@ pub struct Date {
     pub year: u16,
 }
 
-/// Contains price information of a stock for a given `Date`.
-///
-/// All prices are expressed in cents * 10 (i.e. 123456 = 123.456).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Stock {
-    /// Date this stock data refers to
-    date: Date,
-    /// Opening price at the start of the day
-    open: u32,
-    /// Highest price reached during the day
-    high: u32,
-    /// Lowest price during the day
-    low: u32,
-    /// Price at market close
-    close: u32,
-}
-
-impl Stock {
-    /// Creates a new [`Stock`] instance with given values.
-    ///
-    /// All prices must be expressed in cents.
-    pub fn new(date: Date, open: u32, high: u32, low: u32, close: u32) -> Self {
-        Self {
-            date,
-            open,
-            high,
-            low,
-            close,
-        }
-    }
-}
-
 impl Date {
     /// Creates a new [`Date`] from numeric day, month and year values.
     pub fn new(day: u8, month: u8, year: u16) -> Self {
@@ -63,5 +31,34 @@ impl Date {
         let year = parts[2].parse::<u16>().map_err(|_| "Invalid year")?;
 
         Ok(Self::new(day, month, year))
+    }
+}
+
+/// Contains price information of a stock for a given `Date`.
+///
+/// All prices are expressed in cents * 10 (i.e. 123456 = 123.456).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StockEntry {
+    /// Opening price at the start of the day
+    open: u32,
+    /// Highest price reached during the day
+    high: u32,
+    /// Lowest price during the day
+    low: u32,
+    /// Price at market close
+    close: u32,
+}
+
+impl StockEntry {
+    /// Creates a new [`StockEntry`] instance with given values.
+    ///
+    /// All prices must be expressed in cents.
+    pub fn new(open: u32, high: u32, low: u32, close: u32) -> Self {
+        Self {
+            open,
+            high,
+            low,
+            close,
+        }
     }
 }
