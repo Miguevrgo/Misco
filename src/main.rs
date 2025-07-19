@@ -28,4 +28,10 @@ fn main() {
         let path = Path::new(&filename);
         portfolio.load_stock(ticker, name, path);
     }
+
+    for ticker in LEARN_TICKER {
+        if let Some(stock) = portfolio.stock(ticker) {
+            println!("{stock}");
+        }
+    }
 }
