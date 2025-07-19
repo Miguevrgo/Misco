@@ -90,3 +90,14 @@ impl std::fmt::Display for StockEntry {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_date_from_csv_valid() {
+        let date = Date::from_csv("2024-07-19 00:00:00-00:00").unwrap();
+        assert_eq!(date, Date::new(2024, 7, 19));
+    }
+}
