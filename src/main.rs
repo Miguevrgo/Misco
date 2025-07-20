@@ -1,7 +1,9 @@
+use network::Layer;
 use portfolio::Portfolio;
 use std::path::Path;
 
 mod entry;
+mod network;
 mod portfolio;
 mod stock;
 
@@ -34,4 +36,7 @@ fn main() {
             println!("{stock}");
         }
     }
+
+    let layer = Layer::new(16, 8);
+    println!("{layer}")
 }
