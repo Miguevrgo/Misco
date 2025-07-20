@@ -1,4 +1,4 @@
-use crate::{entry::Date, portfolio::Data};
+use crate::stock::Data;
 use ndarray::{Array1, Array2};
 use rand::rng;
 use rand_distr::Distribution;
@@ -28,7 +28,7 @@ impl Network {
     }
 
     pub fn SGD(&mut self, eta: f32, epochs: usize, mini_batch_size: u32, training_data: Data) {
-        let start = Date::new(2000, 12, 28);
+        unimplemented!()
     }
 }
 

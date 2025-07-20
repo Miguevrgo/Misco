@@ -1,6 +1,5 @@
-use crate::portfolio::{Data, StockData};
-
 use super::entry::{Date, StockEntry};
+use std::fmt;
 
 /// Represents the time series of a single stock (e.g. "REPYF", "SHEL")
 #[derive(Debug, Clone)]
@@ -26,7 +25,6 @@ impl Stock {
         self.entries.push((date, entry));
     }
 
-    // TODO: If end is not found, find previous valid date @Gonzalo :)
     pub fn data(&self, begin: Date, end: Date) -> StockData {
         let begin = self
             .entries
@@ -38,10 +36,38 @@ impl Stock {
             .iter()
             .position(|date| date.0 > end)
             .expect("Invalid end date");
-        StockData::new(
-            self.entries[begin..end-1].to_vec(),
-            self.entries[end].1.close,
-        )
+        StockData::new(self.entries[begin..end].to_vec(), self.entries[end].1.close)
+    }
+}
+
+#[derive(Default)]
+pub struct StockData {
+    pub training_input: Vec<StockEntry>, // Close value for each day in [start, end[
+    pub real_value: f32,                 // Close value in end day
+}
+
+impl StockData {
+    pub fn new(data: Vec<(Date, StockEntry)>, real_value: f32) -> Self {
+        let mut input = Vec::with_capacity(data.len());
+        data.iter().for_each(|day| input.push(day.1));
+        Self {
+            training_input: input,
+            real_value,
+        }
+    }
+}
+
+pub struct Data {
+    pub data: Vec<StockData>,
+}
+
+impl Data {
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
+    pub fn push(&mut self, stock_data: StockData) {
+        self.data.push(stock_data);
     }
 }
 
@@ -54,6 +80,79 @@ impl std::fmt::Display for Stock {
         )?;
         for (date, entry) in &self.entries {
             writeln!(f, "\x1b[1;32m󰃭 {date}  {entry}")?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for StockData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let n = self.training_input.len();
+        let half = n.div_ceil(2);
+
+        writeln!(
+            f,
+            "\x1b[1;34m╔═════════╦════════════╦═════════╦════════════╗\x1b[0m"
+        )?;
+        writeln!(
+            f,
+            "\x1b[1;34m║ Day (#) ║  Close (€) ║ Day (#) ║  Close (€) ║\x1b[0m"
+        )?;
+        writeln!(
+            f,
+            "\x1b[1;34m╟─────────║────────────╫─────────╫────────────╢\x1b[0m"
+        )?;
+
+        for i in 0..half {
+            let left = self.training_input.get(i);
+            let right = self.training_input.get(i + half);
+
+            match (left, right) {
+                (Some(l), Some(r)) => writeln!(
+                    f,
+                    "\x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[1;37m{:>10.3} \x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[0m{:>10.3}\x1b[0m \x1b[1;34m║",
+                    i + 1,
+                    l.close,
+                    i + half + 1,
+                    r.close
+                )?,
+                (Some(l), None) => writeln!(
+                    f,
+                    "\x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[1;37m{:>10.3} \x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[0m{:>10.3}\x1b[0m \x1b[1;34m║",
+                    i + 1,
+                    l.close,
+                    "",
+                    ""
+                )?,
+                _ => break,
+            }
+        }
+
+        writeln!(
+            f,
+            "\x1b[1;34m╚═════════╩════════════╩═════════╩════════════╝\x1b[0m"
+        )?;
+        writeln!(f)?;
+        writeln!(
+            f,
+            "\x1b[1;32m╔═════════════════════════════════════════════╗\n\
+             ║  Real Value → {:>26.3} €  ║\n\
+             ╚═════════════════════════════════════════════╝\x1b[0m",
+            self.real_value
+        )
+    }
+}
+
+impl fmt::Display for Data {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, stock_data) in self.data.iter().enumerate() {
+            writeln!(
+                f,
+                "\x1b[1;34m╔═════════════════════════════════════════════╗\n\
+                 ║ \x1b[1;34mStockData #{i}\x1b[1;34m                                ║\n\
+                 ╚═════════════════════════════════════════════╝\x1b[0m"
+            )?;
+            writeln!(f, "{stock_data}")?;
         }
         Ok(())
     }

@@ -1,66 +1,9 @@
-use std::{fmt, path::Path};
+use std::path::Path;
 
 use crate::{
     entry::{Date, StockEntry},
-    stock::Stock,
+    stock::{Data, Stock},
 };
-
-#[derive(Default)]
-pub struct StockData {
-    pub training_input: Vec<StockEntry>, // Close value for each day in [start, end[
-    pub real_value: f32,                 // Close value in end day
-}
-
-impl StockData {
-    pub fn new(data: Vec<(Date, StockEntry)>, real_value: f32) -> Self {
-        let mut input = Vec::with_capacity(data.len());
-        for day in data {
-            input.push(day.1);
-        }
-        Self {
-            training_input: input,
-            real_value,
-        }
-    }
-}
-
-impl fmt::Display for StockData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Training Input (Close values):")?;
-        for (i, entry) in self.training_input.iter().enumerate() {
-            writeln!(f, "  Day {:>2}: {entry}", i + 1)?;
-        }
-        writeln!(
-            f,
-            "Real Value (Close on target date): {:>8.3}",
-            self.real_value
-        )
-    }
-}
-
-pub struct Data {
-    pub data: Vec<StockData>,
-}
-
-impl Data {
-    pub fn new() -> Self {
-        Self { data: Vec::new() }
-    }
-
-    pub fn push(&mut self, stock_data: StockData) {
-        self.data.push(stock_data);
-    }
-}
-
-impl fmt::Display for Data {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, stock_data) in self.data.iter().enumerate() {
-            writeln!(f, "──────── StockData #{i} ────────")?;
-            writeln!(f, "{stock_data}")?;
-        }
-        Ok(())
-    }
-}
 
 pub struct Portfolio {
     stocks: Vec<Stock>,
