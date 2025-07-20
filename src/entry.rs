@@ -59,25 +59,23 @@ impl std::fmt::Display for Date {
 }
 
 /// Contains price information of a stock for a given `Date`.
-///
-/// All prices are expressed in cents * 10 (i.e. 123456 = 123.456).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StockEntry {
     /// Opening price at the start of the day
-    open: u32,
+    open: f32,
     /// Highest price reached during the day
-    high: u32,
+    high: f32,
     /// Lowest price during the day
-    low: u32,
+    low: f32,
     /// Price at market close
-    close: u32,
+    close: f32,
 }
 
 impl StockEntry {
     /// Creates a new [`StockEntry`] instance with given values.
     ///
     /// All prices must be expressed in cents.
-    pub fn new(open: u32, high: u32, low: u32, close: u32) -> Self {
+    pub fn new(open: f32, high: f32, low: f32, close: f32) -> Self {
         Self {
             open,
             high,
@@ -92,10 +90,7 @@ impl std::fmt::Display for StockEntry {
         write!(
             f,
             "{:>8.3} | {:>8.3} | {:>8.3} | {:>8.3}",
-            (self.open as f32) / 1000.0,
-            (self.high as f32) / 1000.0,
-            (self.low as f32) / 1000.0,
-            (self.close as f32) / 1000.0
+            self.open, self.high, self.low, self.close,
         )
     }
 }

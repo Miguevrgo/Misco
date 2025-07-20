@@ -22,10 +22,10 @@ impl Portfolio {
             let entry = result.unwrap();
             let date = Date::from_csv(entry.get(0).unwrap()).expect("Invalid Date");
             let entry = StockEntry::new(
-                (entry.get(1).unwrap().parse::<f64>().expect("Invalid open") * 1000.0) as u32,
-                (entry.get(2).unwrap().parse::<f64>().expect("Invalid high") * 1000.0) as u32,
-                (entry.get(3).unwrap().parse::<f64>().expect("Invalid low") * 1000.0) as u32,
-                (entry.get(4).unwrap().parse::<f64>().expect("Invalid close") * 1000.0) as u32,
+                entry.get(1).unwrap().parse::<f32>().expect("Invalid open"),
+                entry.get(2).unwrap().parse::<f32>().expect("Invalid high"),
+                entry.get(3).unwrap().parse::<f32>().expect("Invalid low"),
+                entry.get(4).unwrap().parse::<f32>().expect("Invalid close"),
             );
             stock.push(date, entry);
         }
