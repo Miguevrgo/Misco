@@ -52,6 +52,14 @@ impl Date {
     }
 }
 
+impl PartialOrd for Date {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.year.cmp(&other.year)
+            .then(self.month.cmp(&other.month))
+            .then(self.day.cmp(&other.day)))
+    }
+}
+
 impl std::fmt::Display for Date {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
@@ -128,5 +136,22 @@ mod tests {
     fn test_date_display() {
         let date = Date::new(2024, 7, 19);
         assert_eq!(format!("{date}"), "2024-07-19");
+    }
+
+    #[test]
+    fn test_date_ordering() {
+        let date1 = Date::new(2004, 7, 19);
+        let date2 = Date::new(2004, 7, 18);
+        let date3 = Date::new(2004, 8, 19); 
+        let date4 = Date::new(2005, 7, 19);
+        let date5 = Date::new(2004, 8, 18);
+        assert!(date1 > date2);
+        assert!(date1 < date3);
+        assert!(date1 < date4);
+        assert!(date2 < date1);
+        assert!(date3 > date1);
+        assert!(date4 > date1);
+        assert!(date1 < date5);
+        assert!(date5 < date3);
     }
 }
