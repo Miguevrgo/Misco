@@ -48,26 +48,23 @@ impl Layer {
     }
 }
 
-use std::fmt;
-
-impl fmt::Display for Layer {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for Layer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let last = self.weights.len() - 1;
+        writeln!(f, " Layer")?;
 
         for (j, weights) in self.weights.iter().enumerate() {
-            let border = if j == 0 {
-                '['
-            } else if j == last {
-                ']'
-            } else {
-                '|'
+            let (start, end) = match j {
+                0 => ('┌', '┐'),
+                i if i == last => ('└', '┘'),
+                _ => ('│', '│'),
             };
 
-            write!(f, "n{:>2}: {} ", j, border)?;
+            write!(f, " {start} ")?;
             for w in weights {
-                write!(f, "{:>7.3} ", w)?;
+                write!(f, "{w:>7.3} ")?;
             }
-            writeln!(f, "{} + {:>7.3}", border, self.bias[j])?;
+            writeln!(f, "{end}  |  {start} {:>7.3} {end}", self.bias[j])?;
         }
 
         Ok(())
