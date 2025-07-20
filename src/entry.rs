@@ -68,7 +68,7 @@ pub struct StockEntry {
     /// Lowest price during the day
     low: f32,
     /// Price at market close
-    close: f32,
+    pub close: f32,
 }
 
 impl StockEntry {

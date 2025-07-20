@@ -1,3 +1,5 @@
+use crate::portfolio::{Data, StockData};
+
 use super::entry::{Date, StockEntry};
 
 /// Represents the time series of a single stock (e.g. "REPYF", "SHEL")
@@ -22,6 +24,25 @@ impl Stock {
 
     pub fn push(&mut self, date: Date, entry: StockEntry) {
         self.entries.push((date, entry));
+    }
+
+    // TODO: If end is not found, find previous valid date @Gonzalo :)
+    pub fn data(&self, begin: Date, end: Date) -> StockData {
+        let begin = self
+            .entries
+            .iter()
+            .position(|date| date.0 == begin)
+            .expect("Invalid begin date");
+        let end = self
+            .entries
+            .iter()
+            .position(|date| date.0 == end)
+            .expect("Invalid end date");
+        StockData::new(
+            self.entries[begin..end].to_vec(),
+            self.entries[begin + 1].1.close,
+        ) // FIX: Overflow
+        // WARNING:
     }
 }
 

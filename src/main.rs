@@ -1,4 +1,4 @@
-use network::Layer;
+use network::{Layer, Network};
 use portfolio::Portfolio;
 use std::path::Path;
 
@@ -38,5 +38,7 @@ fn main() {
     }
 
     let layer = Layer::new(16, 8);
+    #[allow(unused)]
+    let network = Network::new(4, 4);
     println!("{layer}")
 }
