@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fmt, path::Path};
 
 use crate::{
     entry::{Date, StockEntry},
@@ -24,6 +24,20 @@ impl StockData {
     }
 }
 
+impl fmt::Display for StockData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Training Input (Close values):")?;
+        for (i, entry) in self.training_input.iter().enumerate() {
+            writeln!(f, "  Day {:>2}: {entry}", i + 1)?;
+        }
+        writeln!(
+            f,
+            "Real Value (Close on target date): {:>8.3}",
+            self.real_value
+        )
+    }
+}
+
 pub struct Data {
     pub data: Vec<StockData>,
 }
@@ -35,6 +49,16 @@ impl Data {
 
     pub fn push(&mut self, stock_data: StockData) {
         self.data.push(stock_data);
+    }
+}
+
+impl fmt::Display for Data {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, stock_data) in self.data.iter().enumerate() {
+            writeln!(f, "──────── StockData #{i} ────────")?;
+            writeln!(f, "{stock_data}")?;
+        }
+        Ok(())
     }
 }
 

@@ -1,11 +1,7 @@
+use crate::{entry::Date, portfolio::Data};
 use ndarray::{Array1, Array2};
 use rand::rng;
 use rand_distr::Distribution;
-
-use crate::{
-    entry::Date,
-    portfolio::{Data, Portfolio},
-};
 
 pub struct Network {
     pub input_size: usize,
