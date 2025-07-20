@@ -31,18 +31,17 @@ impl Stock {
         let begin = self
             .entries
             .iter()
-            .position(|date| date.0 == begin)
+            .position(|date| date.0 >= begin)
             .expect("Invalid begin date");
         let end = self
             .entries
             .iter()
-            .position(|date| date.0 == end)
+            .position(|date| date.0 > end)
             .expect("Invalid end date");
         StockData::new(
-            self.entries[begin..end].to_vec(),
-            self.entries[begin + 1].1.close,
-        ) // FIX: Overflow
-        // WARNING:
+            self.entries[begin..end-1].to_vec(),
+            self.entries[end].1.close,
+        )
     }
 }
 
