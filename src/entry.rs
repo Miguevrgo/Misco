@@ -54,9 +54,12 @@ impl Date {
 
 impl PartialOrd for Date {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.year.cmp(&other.year)
-            .then(self.month.cmp(&other.month))
-            .then(self.day.cmp(&other.day)))
+        Some(
+            self.year
+                .cmp(&other.year)
+                .then(self.month.cmp(&other.month))
+                .then(self.day.cmp(&other.day)),
+        )
     }
 }
 
@@ -70,11 +73,11 @@ impl std::fmt::Display for Date {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StockEntry {
     /// Opening price at the start of the day
-    open: f32,
+    pub open: f32,
     /// Highest price reached during the day
-    high: f32,
+    pub high: f32,
     /// Lowest price during the day
-    low: f32,
+    pub low: f32,
     /// Price at market close
     pub close: f32,
 }
@@ -142,7 +145,7 @@ mod tests {
     fn test_date_ordering() {
         let date1 = Date::new(2004, 7, 19);
         let date2 = Date::new(2004, 7, 18);
-        let date3 = Date::new(2004, 8, 19); 
+        let date3 = Date::new(2004, 8, 19);
         let date4 = Date::new(2005, 7, 19);
         let date5 = Date::new(2004, 8, 18);
         assert!(date1 > date2);

@@ -1,4 +1,5 @@
 use entry::Date;
+use network::Network;
 use portfolio::Portfolio;
 use std::path::Path;
 
@@ -32,17 +33,17 @@ fn print_header() {
 fn main() {
     print_header();
     let mut portfolio = Portfolio::new();
-    for (ticker, name) in TICKERS.iter().zip(TICKERS_NAME.iter()) {
+    for (ticker, name) in LEARN_TICKER[0..1].iter().zip(LEARN_NAME[0..1].iter()) {
         let filename = format!("data/{ticker}.csv");
         let path = Path::new(&filename);
         portfolio.load_stock(ticker, name, path);
     }
 
-    let training_data = portfolio.get_data(
-        &LEARN_TICKER,
-        Date::new(2024, 7, 28),
-        Date::new(2024, 8, 25),
-    );
-
+    let window_size = 30;
+    let training_data =
+        portfolio.get_data(&LEARN_TICKER, Date::new(2024, 7, 28), Date::new(2024, 9, 9));
     println!("{training_data}");
+
+    let mut network = Network::new(window_size * LEARN_TICKER.len() * 4, 2);
+    network.SGD(0.01, 1000, 32, training_data);
 }
