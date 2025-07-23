@@ -5,18 +5,16 @@ use rand_distr::Distribution;
 
 pub struct Network {
     pub input_size: usize,
-    pub num_layers: usize,
     pub layers: Vec<Layer>,
 }
 
 impl Network {
-    pub fn new(input_size: usize, num_layers: usize) -> Self {
-        let layers = Vec::with_capacity(num_layers);
-        Self {
-            input_size,
-            num_layers,
-            layers,
+    pub fn new(input_size: usize, layer_sizes: Vec<usize>) -> Self {
+        let mut layers = Vec::new();
+        for size in layer_sizes {
+            layers.push(Layer::new(size, input_size));
         }
+        Self { input_size, layers }
     }
 
     pub fn feed_forward(&self, input: &Array1<f32>) -> Array1<f32> {
@@ -30,18 +28,28 @@ impl Network {
 
     pub fn SGD(&mut self, eta: f32, epochs: usize, mini_batch_size: u32, training_data: Data) {
         let mut rng = rng();
-        let mut training_pairs: Vec<(Array1<f32>, f32)> = training_data
-            .data
-            .iter()
-            .map(|stock_data| {
-                let input: Array1<f32> = stock_data
-                    .training_input
-                    .iter()
-                    .flat_map(|entry| vec![entry.open, entry.high, entry.low, entry.close])
-                    .collect();
-                (input, stock_data.real_value)
-            })
-            .collect();
+        let mut training_pairs: Vec<(Array1<f32>, f32)> = Vec::new();
+
+        // Collect training pairs from all stocks
+        for stock_data in &training_data.data {
+            let days = stock_data.training_input.len();
+            // Ensure we have enough days to form at least one input
+            if days >= self.input_size {
+                // Slide a window of size input_size to create input-target pairs
+                for i in 0..=(days - self.input_size) {
+                    let input: Vec<f32> = stock_data.training_input[i..(i + self.input_size)]
+                        .iter()
+                        .map(|entry| entry.close)
+                        .collect();
+                    let target = if i + self.input_size < days {
+                        stock_data.training_input[i + self.input_size].close
+                    } else {
+                        stock_data.real_value
+                    };
+                    training_pairs.push((Array1::from(input), target));
+                }
+            }
+        }
 
         for _ in 0..epochs {
             training_pairs.shuffle(&mut rng);
@@ -107,15 +115,15 @@ impl Network {
         let last_z = zs.last().unwrap();
         let delta = delta * sigmoid_prime(last_z);
 
-        nabla_b[self.num_layers - 1] = delta.clone();
-        nabla_w[self.num_layers - 1] = delta.clone().to_shape((delta.len(), 1)).unwrap().dot(
+        nabla_b[self.layers.len() - 1] = delta.clone();
+        nabla_w[self.layers.len() - 1] = delta.clone().to_shape((delta.len(), 1)).unwrap().dot(
             &activations[activations.len() - 2]
                 .clone()
                 .to_shape((1, activations[activations.len() - 2].len()))
                 .unwrap(),
         );
 
-        for l in (0..self.num_layers - 1).rev() {
+        for l in (0..self.layers.len() - 1).rev() {
             let z = &zs[l];
             let sp = sigmoid_prime(z);
             let delta_next = &self.layers[l + 1].weights.t().dot(&delta);
@@ -183,6 +191,16 @@ impl std::fmt::Display for Layer {
                 write!(f, "{w:>7.3} ")?;
             }
             writeln!(f, "{end}  |  {start} {:>7.3} {end}", self.bias[j])?;
+        }
+
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for Network {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for layer in &self.layers {
+            writeln!(f, "{layer}")?;
         }
 
         Ok(())

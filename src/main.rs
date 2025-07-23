@@ -39,11 +39,12 @@ fn main() {
         portfolio.load_stock(ticker, name, path);
     }
 
-    let window_size = 30;
     let training_data =
         portfolio.get_data(&LEARN_TICKER, Date::new(2024, 7, 28), Date::new(2024, 9, 9));
     println!("{training_data}");
 
-    let mut network = Network::new(window_size * LEARN_TICKER.len() * 4, 2);
-    network.SGD(0.01, 1000, 32, training_data);
+    let mut network = Network::new(10, [8, 8].to_vec());
+    println!("{network}");
+    network.SGD(0.01, 100, 5, training_data);
+    println!("{network}");
 }
