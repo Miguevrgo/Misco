@@ -11,8 +11,10 @@ pub struct Network {
 impl Network {
     pub fn new(input_size: usize, layer_sizes: Vec<usize>) -> Self {
         let mut layers = Vec::new();
-        for size in layer_sizes {
-            layers.push(Layer::new(size, input_size));
+        let mut prev_size = input_size;
+        for &size in &layer_sizes {
+            layers.push(Layer::new(size, prev_size));
+            prev_size = size;
         }
         Self { input_size, layers }
     }
