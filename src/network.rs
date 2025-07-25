@@ -2,10 +2,10 @@ use crate::stock::Data;
 use ndarray::{Array1, Array2};
 use rand::{rng, seq::SliceRandom};
 use rand_distr::Distribution;
-use std::fs::File;
 use serde::{Deserialize, Serialize};
-use std::io::{self, Write};
+use std::fs::File;
 use std::io::Read;
+use std::io::{self, Write};
 
 #[derive(Serialize, Deserialize)]
 pub struct Network {
@@ -26,9 +26,13 @@ impl Network {
 
     pub fn feed_forward(&self, input: &Array1<f32>) -> Array1<f32> {
         let mut activation = input.clone();
-        for layer in &self.layers {
+        for (i, layer) in self.layers.iter().enumerate() {
             let z = layer.weights.dot(&activation) + &layer.bias;
-            activation = sigmoid(&z);
+            activation = if i == self.layers.len() - 1 {
+                z
+            } else {
+                sigmoid(&z)
+            };
         }
         activation
     }
@@ -150,7 +154,7 @@ impl Network {
 
     pub fn save_to_file(&self, path: &str) -> io::Result<()> {
         let encoded = bincode::serialize(self).expect("Serialization failed");
-        let mut file = File::create(path)?; 
+        let mut file = File::create(path)?;
         file.write_all(&encoded)?;
         Ok(())
     }
@@ -159,8 +163,7 @@ impl Network {
         let mut file = File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
-        let decoded: Self = bincode::deserialize(&buffer)
-            .expect("Deserialization failed");
+        let decoded: Self = bincode::deserialize(&buffer).expect("Deserialization failed");
         Ok(decoded)
     }
 }

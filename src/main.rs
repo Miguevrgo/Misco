@@ -1,4 +1,5 @@
 use entry::Date;
+use ndarray::Array1;
 use network::Network;
 use portfolio::Portfolio;
 use std::path::Path;
@@ -39,18 +40,39 @@ fn main() {
         portfolio.load_stock(ticker, name, path);
     }
 
-    let training_data =
-        portfolio.get_data(&LEARN_TICKER, Date::new(2024, 7, 28), Date::new(2024, 9, 9));
-    println!("{training_data}");
+    let training_data = portfolio.get_data(
+        &LEARN_TICKER,
+        Date::new(2015, 7, 28),
+        Date::new(2025, 6, 20),
+    );
+    let mut n_network = Network::new(365, [512, 512].to_vec());
 
-    let mut network = Network::new(10, [8, 8].to_vec());
-    println!("{network}");
-    network.SGD(0.01, 100, 5, training_data);
-    println!("{network}");
+    let network = Network::load_from_file("./data/network.bin").unwrap();
+    let test_data =
+        portfolio.get_data(&LEARN_TICKER, Date::new(2024, 1, 5), Date::new(2025, 6, 20));
 
-    network.save_to_file("./data/network.bin")
-        .expect("Failed to save network");
+    use ndarray::Array1;
 
-    println!("{network}");
+    let test_entry = &test_data.data[0];
+    assert_eq!(test_entry.training_input.len(), 365);
 
+    let input: Array1<f32> = Array1::from(
+        test_entry
+            .training_input
+            .iter()
+            .map(|e| e.close)
+            .collect::<Vec<f32>>(),
+    );
+
+    let prediction = network.feed_forward(&input)[[0]];
+    let prediction_ini = n_network.feed_forward(&input)[[0]];
+    let real = test_entry.real_value;
+
+    println!(
+        "\x1b[1;32mPrediction: {:.3} €\n\x1b[1;32mPrediction_no_train: {:.3} €\nReal value: {:.3} €\nError: {:.3} €\x1b[0m",
+        prediction,
+        prediction_ini,
+        real,
+        (prediction - real).abs()
+    );
 }

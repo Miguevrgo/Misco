@@ -6,7 +6,7 @@ os.makedirs("data", exist_ok=True)
 tickers = ["REPYF", "BP", "SHEL", "TTE", "EQNR", "E"]
 for t in tickers:
     yt = yf.Ticker(t)
-    df = yt.history(period="1y", interval="1d")
+    df = yt.history(period="20y", interval="1d")
     if df.empty:
         print(f"⚠️ No data found for {t}")
     else:
