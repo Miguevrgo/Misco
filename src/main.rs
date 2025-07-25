@@ -47,4 +47,10 @@ fn main() {
     println!("{network}");
     network.SGD(0.01, 100, 5, training_data);
     println!("{network}");
+
+    network.save_to_file("./data/network.bin")
+        .expect("Failed to save network");
+
+    println!("{network}");
+
 }

@@ -2,7 +2,12 @@ use crate::stock::Data;
 use ndarray::{Array1, Array2};
 use rand::{rng, seq::SliceRandom};
 use rand_distr::Distribution;
+use std::fs::File;
+use serde::{Deserialize, Serialize};
+use std::io::{self, Write};
+use std::io::Read;
 
+#[derive(Serialize, Deserialize)]
 pub struct Network {
     pub input_size: usize,
     pub layers: Vec<Layer>,
@@ -142,6 +147,22 @@ impl Network {
 
         (nabla_w, nabla_b)
     }
+
+    pub fn save_to_file(&self, path: &str) -> io::Result<()> {
+        let encoded = bincode::serialize(self).expect("Serialization failed");
+        let mut file = File::create(path)?; 
+        file.write_all(&encoded)?;
+        Ok(())
+    }
+
+    pub fn load_from_file(path: &str) -> io::Result<Self> {
+        let mut file = File::open(path)?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+        let decoded: Self = bincode::deserialize(&buffer)
+            .expect("Deserialization failed");
+        Ok(decoded)
+    }
 }
 
 pub fn sigmoid(z: &Array1<f32>) -> Array1<f32> {
@@ -152,6 +173,7 @@ pub fn sigmoid_prime(z: &Array1<f32>) -> Array1<f32> {
     sigmoid(z).mapv(|s| s * (1.0 - s))
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Layer {
     pub layer_size: usize,
     pub weights: Array2<f32>, // shape: [layer_size, input_size]
