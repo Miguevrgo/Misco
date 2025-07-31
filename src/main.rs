@@ -33,7 +33,6 @@ fn print_header() {
 
 #[cfg(feature = "train")]
 fn train() {
-    print_header();
     let mut portfolio = Portfolio::new();
     for (ticker, name) in LEARN_TICKER[0..1].iter().zip(LEARN_NAME[0..1].iter()) {
         let filename = format!("data/{ticker}.csv");
@@ -43,18 +42,17 @@ fn train() {
 
     let mut training_data = portfolio.get_data(
         &LEARN_TICKER,
-        Date::new(2015, 7, 28),
+        Date::new(2008, 7, 28),
         Date::new(2025, 6, 20),
     );
     training_data.normalize();
-    let mut network = Network::new(365, [512, 512].to_vec());
-    network.SGD(0.01, 100, 5, training_data);
+    let mut network = Network::new(365, [1024, 1024].to_vec());
+    network.SGD(0.01, 200, 10, training_data);
     network.save_to_file("./data/network.bin").unwrap();
 }
 
 #[cfg(feature = "predict")]
 fn predict() {
-    print_header();
     let mut portfolio = Portfolio::new();
     for (ticker, name) in LEARN_TICKER[0..1].iter().zip(LEARN_NAME[0..1].iter()) {
         let filename = format!("data/{ticker}.csv");

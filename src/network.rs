@@ -59,7 +59,8 @@ impl Network {
         }
 
         for i in 0..epochs {
-            println!("{i}");
+            println!("Training epoch: {i}/{epochs}");
+            print!("\x1B[2K\r");
             training_pairs.shuffle(&mut rng);
             for chunk in training_pairs.chunks(mini_batch_size as usize) {
                 let mut nabla_w: Vec<Array2<f32>> = self
