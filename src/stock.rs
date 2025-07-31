@@ -1,5 +1,6 @@
 use super::entry::{Date, StockEntry};
-use std::fmt;
+use core::f32;
+use std::{f32::INFINITY, fmt};
 
 /// Represents the time series of a single stock (e.g. "REPYF", "SHEL")
 #[derive(Debug, Clone)]
@@ -44,6 +45,8 @@ impl Stock {
 pub struct StockData {
     pub training_input: Vec<StockEntry>, // Close value for each day in [start, end[
     pub real_value: f32,                 // Close value in end day
+    pub max: f32,
+    pub min: f32,
 }
 
 impl StockData {
@@ -53,7 +56,43 @@ impl StockData {
         Self {
             training_input: input,
             real_value,
+            max: f32::NEG_INFINITY,
+            min: f32::INFINITY,
         }
+    }
+
+    pub fn normalize(&mut self) {
+        let closes: Vec<f32> = self
+            .training_input
+            .iter()
+            .map(|entry| entry.close)
+            .collect();
+
+        let min = closes
+            .iter()
+            .fold(f32::INFINITY, |a, &b| a.min(b))
+            .min(self.real_value);
+        let max = closes
+            .iter()
+            .fold(f32::NEG_INFINITY, |a, &b| a.max(b))
+            .max(self.real_value);
+
+        // NOTE: Division by 0 possible :)
+        self.training_input.iter_mut().for_each(|entry| {
+            entry.open = (entry.open - min) / (max - min);
+            entry.high = (entry.high - min) / (max - min);
+            entry.low = (entry.low - min) / (max - min);
+            entry.close = (entry.close - min) / (max - min);
+        });
+
+        self.real_value = (self.real_value - min) / (max - min);
+
+        self.min = min;
+        self.max = max;
+    }
+
+    pub fn denormalize(&self, value: f32) -> f32 {
+        value * (self.max - self.min) + self.min
     }
 }
 
@@ -68,6 +107,12 @@ impl Data {
 
     pub fn push(&mut self, stock_data: StockData) {
         self.data.push(stock_data);
+    }
+
+    pub fn normalize(&mut self) {
+        for stock_data in &mut self.data {
+            stock_data.normalize();
+        }
     }
 }
 
@@ -112,15 +157,15 @@ impl fmt::Display for StockData {
                     f,
                     "\x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[1;37m{:>10.3} \x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[0m{:>10.3}\x1b[0m \x1b[1;34m║",
                     i + 1,
-                    l.close,
+                    self.denormalize(l.close),
                     i + half + 1,
-                    r.close
+                    self.denormalize(r.close),
                 )?,
                 (Some(l), None) => writeln!(
                     f,
                     "\x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[1;37m{:>10.3} \x1b[1;34m║ \x1b[0m{:>7} \x1b[1;34m║ \x1b[0m{:>10.3}\x1b[0m \x1b[1;34m║",
                     i + 1,
-                    l.close,
+                    self.denormalize(l.close),
                     "",
                     ""
                 )?,
@@ -138,7 +183,7 @@ impl fmt::Display for StockData {
             "\x1b[1;32m╔═════════════════════════════════════════════╗\n\
              ║  Real Value → {:>26.3} €  ║\n\
              ╚═════════════════════════════════════════════╝\x1b[0m",
-            self.real_value
+            self.denormalize(self.real_value)
         )
     }
 }

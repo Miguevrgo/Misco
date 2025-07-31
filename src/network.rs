@@ -26,13 +26,9 @@ impl Network {
 
     pub fn feed_forward(&self, input: &Array1<f32>) -> Array1<f32> {
         let mut activation = input.clone();
-        for (i, layer) in self.layers.iter().enumerate() {
+        for layer in self.layers.iter() {
             let z = layer.weights.dot(&activation) + &layer.bias;
-            activation = if i == self.layers.len() - 1 {
-                z
-            } else {
-                sigmoid(&z)
-            };
+            activation = sigmoid(&z)
         }
         activation
     }
@@ -62,7 +58,8 @@ impl Network {
             }
         }
 
-        for _ in 0..epochs {
+        for i in 0..epochs {
+            println!("{i}");
             training_pairs.shuffle(&mut rng);
             for chunk in training_pairs.chunks(mini_batch_size as usize) {
                 let mut nabla_w: Vec<Array2<f32>> = self
