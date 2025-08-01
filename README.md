@@ -10,3 +10,6 @@ Shell PLC
 TotalEnergies SE
 Equinor ASA
 Eni S.p.A.
+<div align="center">
+  <img src="stock_prediction_plot.png" alt="test" />
+</div>
