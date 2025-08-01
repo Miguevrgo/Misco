@@ -1,6 +1,6 @@
 use super::entry::{Date, StockEntry};
 use core::f32;
-use std::{f32::INFINITY, fmt};
+use std::fmt;
 
 /// Represents the time series of a single stock (e.g. "REPYF", "SHEL")
 #[derive(Debug, Clone)]

@@ -11,7 +11,10 @@ mod network;
 mod portfolio;
 mod stock;
 
+#[allow(dead_code)]
 const TICKERS: [&str; 6] = ["BP", "E", "EQNR", "REPYF", "TTE", "SHEL"];
+
+#[allow(dead_code)]
 const TICKERS_NAME: [&str; 6] = ["BP", "ENI", "EQUINOR", "REPSOL", "TOTAL ENERGY", "SHELL"];
 
 const LEARN_TICKER: [&str; 3] = ["BP", "E", "EQNR"];
@@ -35,6 +38,8 @@ fn print_header() {
 
 #[cfg(feature = "train")]
 fn train() {
+    use network::Activation;
+
     let mut portfolio = Portfolio::new();
     for (ticker, name) in LEARN_TICKER[0..1].iter().zip(LEARN_NAME[0..1].iter()) {
         let filename = format!("data/{ticker}.csv");
@@ -48,8 +53,8 @@ fn train() {
         Date::new(2025, 6, 20),
     );
     training_data.normalize();
-    let mut network = Network::new(365, [1024, 1024].to_vec());
-    network.SGD(0.01, 200, 10, training_data);
+    let mut network = Network::new(512, [1024, 1024].to_vec(), Activation::ReLU);
+    network.sgd(0.005, 200, 32, training_data);
     network.save_to_file("./data/network.bin").unwrap();
 }
 
@@ -64,11 +69,11 @@ fn predict() {
 
     let network = Network::load_from_file("./data/network.bin").unwrap();
     let mut test_data =
-        portfolio.get_data(&LEARN_TICKER, Date::new(2024, 1, 5), Date::new(2025, 6, 20));
+        portfolio.get_data(&LEARN_TICKER, Date::new(2023, 6, 6), Date::new(2025, 6, 20));
     test_data.normalize();
 
     let test_entry = &test_data.data[0];
-    assert_eq!(test_entry.training_input.len(), 365);
+    assert_eq!(test_entry.training_input.len(), 512);
 
     let input: Array1<f32> = Array1::from(
         test_entry
@@ -99,7 +104,7 @@ fn test() {
     }
 
     let network = Network::load_from_file("./data/network.bin").unwrap();
-    const CHUNK_SIZE: usize = 365;
+    const CHUNK_SIZE: usize = 512;
     let num_predictions = 300;
 
     let stock = portfolio.stock(LEARN_TICKER[0]).expect("Stock not found");
@@ -120,7 +125,7 @@ fn test() {
         test_data.normalize();
 
         let test_entry = &test_data.data[0];
-        assert_eq!(test_entry.training_input.len(), 365);
+        assert_eq!(test_entry.training_input.len(), 512);
 
         let input: Array1<f32> = Array1::from(
             test_entry

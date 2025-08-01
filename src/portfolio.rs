@@ -44,6 +44,7 @@ impl Portfolio {
     }
 
     /// Returns the stock identified by the ticket
+    #[allow(dead_code)]
     pub fn stock(&self, ticker: &str) -> Option<&Stock> {
         self.stocks.iter().find(|stock| stock.ticker == ticker)
     }
