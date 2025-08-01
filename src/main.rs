@@ -100,7 +100,7 @@ fn test() {
 
     let network = Network::load_from_file("./data/network.bin").unwrap();
     const CHUNK_SIZE: usize = 365;
-    let num_predictions = 30;
+    let num_predictions = 300;
 
     let stock = portfolio.stock(LEARN_TICKER[0]).expect("Stock not found");
 
