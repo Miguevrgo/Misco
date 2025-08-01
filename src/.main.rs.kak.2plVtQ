@@ -3,8 +3,6 @@ use ndarray::Array1;
 use network::Network;
 use portfolio::Portfolio;
 use std::path::Path;
-use std::fs::File;
-use std::io::Write;
 
 mod entry;
 mod network;
@@ -89,65 +87,10 @@ fn predict() {
     );
 }
 
-#[cfg(feature = "test")]
-fn test() {
-    let mut portfolio = Portfolio::new();
-    for (ticker, name) in LEARN_TICKER[0..1].iter().zip(LEARN_NAME[0..1].iter()) {
-        let filename = format!("data/{ticker}.csv");
-        let path = Path::new(&filename);
-        portfolio.load_stock(ticker, name, path);
-    }
-
-    let network = Network::load_from_file("./data/network.bin").unwrap();
-    const CHUNK_SIZE: usize = 365;
-    let num_predictions = 30;
-
-    let stock = portfolio.stock(LEARN_TICKER[0]).expect("Stock not found");
-
-    let total_entries = stock.entries.len();
-    if total_entries < CHUNK_SIZE {
-        panic!("Not enough historical data for prediction");
-    }
-
-    let mut file = File::create("prediction.csv").unwrap();
-    for i in (0..num_predictions).rev() {
-        let entries =
-            &stock.entries[(stock.entries.len() - CHUNK_SIZE - i - 1)..stock.entries.len() - i - 1];
-
-        let mut test_data =
-            portfolio.get_data(&LEARN_TICKER, entries[0].0, entries.last().unwrap().0);
-        test_data.normalize();
-
-        let test_entry = &test_data.data[0];
-        assert_eq!(test_entry.training_input.len(), 365);
-
-        let input: Array1<f32> = Array1::from(
-            test_entry
-                .training_input
-                .iter()
-                .map(|e| e.close)
-                .collect::<Vec<f32>>(),
-        );
-
-        let prediction = test_entry.denormalize(network.feed_forward(&input)[[0]]);
-        let real = test_entry.denormalize(test_entry.real_value);
-        println!(
-            "{}\n\x1b[1;32mPrediction: {:.3} €\x1b[1;32m\nReal value: {:.3} €\nError: {:.3} €\x1b[0m",
-            entries.last().unwrap().0,
-            prediction,
-            real,
-            (prediction - real).abs()
-        );
-        writeln!(file, "{},{},{},{}", entries.last().unwrap().0,prediction, real, (prediction-real).abs());
-    }
-}
-
 fn main() {
     print_header();
     #[cfg(feature = "train")]
     train();
     #[cfg(feature = "predict")]
     predict();
-    #[cfg(feature = "test")]
-    test();
 }
