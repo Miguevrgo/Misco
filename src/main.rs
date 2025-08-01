@@ -2,9 +2,9 @@ use entry::Date;
 use ndarray::Array1;
 use network::Network;
 use portfolio::Portfolio;
-use std::path::Path;
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 mod entry;
 mod network;
@@ -109,7 +109,8 @@ fn test() {
         panic!("Not enough historical data for prediction");
     }
 
-    let mut file = File::create("prediction.csv").unwrap();
+    let mut file = File::create("predictions.csv").unwrap();
+    writeln!(file, "Date,Predicted Value,Real Value,Error").unwrap();
     for i in (0..num_predictions).rev() {
         let entries =
             &stock.entries[(stock.entries.len() - CHUNK_SIZE - i - 1)..stock.entries.len() - i - 1];
@@ -131,14 +132,15 @@ fn test() {
 
         let prediction = test_entry.denormalize(network.feed_forward(&input)[[0]]);
         let real = test_entry.denormalize(test_entry.real_value);
-        println!(
-            "{}\n\x1b[1;32mPrediction: {:.3} €\x1b[1;32m\nReal value: {:.3} €\nError: {:.3} €\x1b[0m",
+        writeln!(
+            file,
+            "{},{},{},{}",
             entries.last().unwrap().0,
             prediction,
             real,
             (prediction - real).abs()
-        );
-        writeln!(file, "{},{},{},{}", entries.last().unwrap().0,prediction, real, (prediction-real).abs());
+        )
+        .unwrap();
     }
 }
 
