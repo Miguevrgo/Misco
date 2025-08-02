@@ -55,7 +55,7 @@ fn train() {
     training_data.normalize();
     let mut network = Network::new(512, [256, 256, 256].to_vec(), Activation::ReLU);
     network.sgd(0.005, 200, 32, training_data);
-    network.save_to_file("./data/network.bin").unwrap();
+    network.save_to_file("./data/networks/network.bin").unwrap();
 }
 
 #[cfg(feature = "predict")]
@@ -67,7 +67,7 @@ fn predict() {
         portfolio.load_stock(ticker, name, path);
     }
 
-    let network = Network::load_from_file("./data/network.bin").unwrap();
+    let network = Network::load_from_file("./data/networks/network.bin").unwrap();
     let mut test_data =
         portfolio.get_data(&LEARN_TICKER, Date::new(2023, 6, 6), Date::new(2025, 6, 20));
     test_data.normalize();
@@ -103,7 +103,7 @@ fn test() {
         portfolio.load_stock(ticker, name, path);
     }
 
-    let network = Network::load_from_file("./data/network.bin").unwrap();
+    let network = Network::load_from_file("./data/networks/network.bin").unwrap();
     const CHUNK_SIZE: usize = 512;
     let num_predictions = 300;
 

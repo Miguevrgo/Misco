@@ -6,11 +6,11 @@ kickstart:
 	@echo "Installing dependencies..."
 	@.venv/bin/pip install yfinance matplotlib
 	@echo "Downloading data..."
-	@.venv/bin/python3 data.py 
+	@.venv/bin/python3 data/scripts/data.py 
 	@echo "Done."
 
 graph:
-	@.venv/bin/python graph.py
+	@.venv/bin/python data/scripts/graph.py
 
 test:
 	@RUSTFLAGS="-C target-cpu=native" cargo run --release --features test
@@ -24,5 +24,5 @@ predict:
 clean:
 	@echo "Cleaning up..."
 	@rm -rf .venv
-	@rm -rf data/
+	@rm -rf data/*.csv
 	@echo "Done."
