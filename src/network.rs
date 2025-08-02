@@ -50,7 +50,7 @@ impl Network {
     pub fn feed_forward(&self, input: &Array1<f32>) -> Array1<f32> {
         let mut activation = input.clone();
         for layer in self.layers.iter() {
-            let z = layer.weights.dot(&activation) + &layer.bias;
+            let z = &layer.weights.dot(&activation) + &layer.bias;
             activation = self.activate(&z);
         }
         activation
@@ -152,6 +152,10 @@ impl Network {
                 "\x1b[1;32mEstimated time: {:?}",
                 Duration::from_secs(estimated)
             );
+            if i % 100 == 0 {
+                let path = format!("data/networks/checkpoint{i}");
+                self.save_to_file(&path).unwrap();
+            }
         }
     }
 

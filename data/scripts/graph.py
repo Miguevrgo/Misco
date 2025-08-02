@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 def load_predictions(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, skipinitialspace=True)
@@ -37,4 +38,6 @@ def plot_predictions(df: pd.DataFrame, ticker_symbol: str):
     print("Graph saved as stock_prediction_error.png")
 
 df = load_predictions("predictions.csv")
+rmse = np.sqrt((df['Error'] ** 2).mean())
+print(f"RMSE: {rmse:.4f} EUR")
 plot_predictions(df, "BP")
