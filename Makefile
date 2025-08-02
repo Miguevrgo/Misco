@@ -10,7 +10,16 @@ kickstart:
 	@echo "Done."
 
 graph:
-	.venv/bin/python graph.py
+	@.venv/bin/python graph.py
+
+test:
+	@RUSTFLAGS="-C target-cpu=native" cargo run --release --features test
+
+train:
+	@RUSTFLAGS="-C target-cpu=native" cargo run --release --features train
+
+predict:
+	@RUSTFLAGS="-C target-cpu=native" cargo run --release --features predict
 
 clean:
 	@echo "Cleaning up..."
