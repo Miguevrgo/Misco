@@ -50,10 +50,10 @@ fn train() {
     let mut training_data = portfolio.get_data(
         &LEARN_TICKER,
         Date::new(2008, 7, 28),
-        Date::new(2025, 6, 20),
+        Date::new(2024, 6, 20),
     );
     training_data.normalize();
-    let mut network = Network::new(512, [1024, 1024].to_vec(), Activation::ReLU);
+    let mut network = Network::new(512, [256, 256, 256].to_vec(), Activation::ReLU);
     network.sgd(0.005, 200, 32, training_data);
     network.save_to_file("./data/network.bin").unwrap();
 }
