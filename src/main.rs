@@ -53,7 +53,7 @@ fn train() {
         Date::new(2024, 6, 20),
     );
     training_data.normalize();
-    let mut network = Network::new(512, [1024, 512, 256, 128].to_vec(), Activation::ReLU);
+    let mut network = Network::new(512, [256, 256, 256].to_vec(), Activation::ReLU);
     network.sgd(0.005, 200, 32, training_data);
     network.save_to_file("./data/networks/network.bin").unwrap();
 }
