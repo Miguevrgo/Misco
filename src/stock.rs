@@ -27,17 +27,22 @@ impl Stock {
     }
 
     pub fn data(&self, begin: Date, end: Date) -> StockData {
-        let begin = self
+        let begin_idx = self
             .entries
             .iter()
             .position(|date| date.0 >= begin)
             .expect("Invalid begin date");
-        let end = self
+        let end_idx = self
             .entries
             .iter()
             .position(|date| date.0 > end)
-            .expect("Invalid end date");
-        StockData::new(self.entries[begin..end].to_vec(), self.entries[end].1.close)
+            .unwrap_or(self.entries.len());
+        let real_value = if end_idx < self.entries.len() {
+            self.entries[end_idx].1.close
+        } else {
+            self.entries.last().unwrap().1.close
+        };
+        StockData::new(self.entries[begin_idx..end_idx].to_vec(), real_value)
     }
 }
 
@@ -62,33 +67,38 @@ impl StockData {
     }
 
     pub fn normalize(&mut self) {
-        let closes: Vec<f32> = self
-            .training_input
-            .iter()
-            .map(|entry| entry.close)
-            .collect();
+        let mut min = f32::INFINITY;
+        let mut max = f32::NEG_INFINITY;
+        for entry in &self.training_input {
+            min = min.min(entry.open).min(entry.high).min(entry.low).min(entry.close);
+            max = max.max(entry.open).max(entry.high).max(entry.low).max(entry.close);
+        }
 
-        let min = closes
-            .iter()
-            .fold(f32::INFINITY, |a, &b| a.min(b))
-            .min(self.real_value);
-        let max = closes
-            .iter()
-            .fold(f32::NEG_INFINITY, |a, &b| a.max(b))
-            .max(self.real_value);
+        let range = max - min;
+        if range == 0.0 {
+            return;
+        }
 
-        // NOTE: Division by 0 possible :)
         self.training_input.iter_mut().for_each(|entry| {
-            entry.open = (entry.open - min) / (max - min);
-            entry.high = (entry.high - min) / (max - min);
-            entry.low = (entry.low - min) / (max - min);
-            entry.close = (entry.close - min) / (max - min);
+            entry.open = (entry.open - min) / range;
+            entry.high = (entry.high - min) / range;
+            entry.low = (entry.low - min) / range;
+            entry.close = (entry.close - min) / range;
         });
 
-        self.real_value = (self.real_value - min) / (max - min);
+        self.real_value = (self.real_value - min) / range;
 
         self.min = min;
         self.max = max;
+    }
+
+    pub fn to_input(&self) -> ndarray::Array1<f32> {
+        ndarray::Array1::from(
+            self.training_input
+                .iter()
+                .map(|e| e.close)
+                .collect::<Vec<f32>>(),
+        )
     }
 
     pub fn denormalize(&self, value: f32) -> f32 {

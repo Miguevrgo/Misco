@@ -1,198 +1,193 @@
-use entry::Date;
-use ndarray::Array1;
-use network::Network;
 use portfolio::Portfolio;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
 
+mod display;
 mod entry;
 mod network;
 mod portfolio;
 mod stock;
 
-#[allow(dead_code)]
-const TICKERS: [&str; 6] = ["BP", "E", "EQNR", "REPYF", "TTE", "SHEL"];
-
-#[allow(dead_code)]
-const TICKERS_NAME: [&str; 6] = ["BP", "ENI", "EQUINOR", "REPSOL", "TOTAL ENERGY", "SHELL"];
-
+#[cfg(feature = "train")]
 const LEARN_TICKER: [&str; 3] = ["BP", "E", "EQNR"];
+#[cfg(feature = "train")]
 const LEARN_NAME: [&str; 3] = ["BP", "ENI", "EQUINOR"];
 
-#[allow(dead_code)]
+#[cfg(any(feature = "test", feature = "predict", feature = "stonks"))]
 const TEST_TICKER: [&str; 3] = ["REPYF", "SHEL", "TTE"];
-#[allow(dead_code)]
+#[cfg(any(feature = "test", feature = "predict", feature = "stonks"))]
 const TEST_NAME: [&str; 3] = ["REPSOL", "SHELL", "TOTAL ENERGY"];
 
+#[cfg(any(
+    feature = "train",
+    feature = "test",
+    feature = "predict",
+    feature = "stonks"
+))]
+fn load_portfolio(tickers: &[&str], names: &[&str]) -> Portfolio {
+    let mut portfolio = Portfolio::new();
+    for (ticker, name) in tickers.iter().zip(names.iter()) {
+        let filename = format!("data/{ticker}.csv");
+        portfolio.load_stock(ticker, name, std::path::Path::new(&filename));
+    }
+    portfolio
+}
+
 fn print_header() {
-    println!("\x1b[1;33m╔═════════════════════════════════════════════╗\x1b[0m");
-    println!(
-        "\x1b[1;33m║\x1b[1;34m           Misco Stock Predictor V0          \x1b[1;33m║\x1b[0m"
-    );
-    println!(
-        "\x1b[1;33m║\x1b[1;34m    Miguel Angel De la Vega | Gonzalo Olmo   \x1b[1;33m║\x1b[0m"
-    );
-    println!("\x1b[1;33m╚═════════════════════════════════════════════╝\x1b[0m");
+    display::print_box(&[
+        "Misco Stock Predictor V0",
+        "Miguel Angel De la Vega | Gonzalo Olmo",
+    ]);
 }
 
 #[cfg(feature = "train")]
 fn train() {
-    use network::Activation;
+    use entry::Date;
+    use network::{Activation, Network};
 
-    let mut portfolio = Portfolio::new();
-    for (ticker, name) in LEARN_TICKER.iter().zip(LEARN_NAME.iter()) {
-        let filename = format!("data/{ticker}.csv");
-        let path = Path::new(&filename);
-        portfolio.load_stock(ticker, name, path);
-    }
-
+    let portfolio = load_portfolio(&LEARN_TICKER, &LEARN_NAME);
     let mut training_data = portfolio.get_data(
         &LEARN_TICKER,
         Date::new(2008, 7, 28),
         Date::new(2024, 6, 20),
     );
     training_data.normalize();
-    let mut network = Network::new(512, [256, 256, 256].to_vec(), Activation::ReLU);
+    let mut network = Network::new(512, vec![256, 256, 1], Activation::ReLU);
     network.sgd(0.005, 200, 32, training_data);
-    network.save_to_file("./data/networks/network.bin").unwrap();
+    network.save_to_file("./models/network.bin").unwrap();
 }
 
 #[cfg(feature = "predict")]
 fn predict() {
-    let mut portfolio = Portfolio::new();
-    for (ticker, name) in LEARN_TICKER[0..1].iter().zip(LEARN_NAME[0..1].iter()) {
-        let filename = format!("data/{ticker}.csv");
-        let path = Path::new(&filename);
-        portfolio.load_stock(ticker, name, path);
-    }
+    use network::Network;
 
-    let network = Network::load_from_file("./data/networks/network.bin").unwrap();
-    let mut test_data =
-        portfolio.get_data(&LEARN_TICKER, Date::new(2023, 6, 6), Date::new(2025, 6, 20));
+    let portfolio = load_portfolio(&TEST_TICKER[0..1], &TEST_NAME[0..1]);
+    let network = Network::load_from_file("./models/network.bin").unwrap();
+
+    let stock = portfolio.stock(TEST_TICKER[0]).expect("Stock not found");
+    let n = stock.entries.len();
+    const CHUNK: usize = 512;
+    assert!(n > CHUNK, "Not enough data for prediction");
+
+    // Last CHUNK entries as input, entry after them as real value
+    let begin = stock.entries[n - CHUNK - 1].0;
+    let end = stock.entries[n - 2].0;
+    let mut test_data = portfolio.get_data(&[TEST_TICKER[0]], begin, end);
     test_data.normalize();
 
     let test_entry = &test_data.data[0];
-    assert_eq!(test_entry.training_input.len(), 512);
-
-    let input: Array1<f32> = Array1::from(
-        test_entry
-            .training_input
-            .iter()
-            .map(|e| e.close)
-            .collect::<Vec<f32>>(),
-    );
+    let input = test_entry.to_input();
 
     let prediction = test_entry.denormalize(network.feed_forward(&input)[[0]]);
     let real = test_entry.denormalize(test_entry.real_value);
 
-    println!(
-        "\x1b[1;32mPrediction: {:.3} €\n\x1b[1;32m\nReal value: {:.3} €\nError: {:.3} €\x1b[0m",
-        prediction,
-        real,
-        (prediction - real).abs()
-    );
+    display::print_box(&[
+        &format!("Prediction: {:.3} EUR", prediction),
+        &format!("Real value: {:.3} EUR", real),
+        &format!("Error:      {:.3} EUR", (prediction - real).abs()),
+    ]);
 }
 
 #[cfg(feature = "test")]
 fn test() {
-    let mut portfolio = Portfolio::new();
-    for (ticker, name) in LEARN_TICKER.iter().zip(LEARN_NAME.iter()) {
-        let filename = format!("data/{ticker}.csv");
-        let path = Path::new(&filename);
-        portfolio.load_stock(ticker, name, path);
-    }
+    use network::Network;
+    use std::io::Write;
 
-    let network = Network::load_from_file("./data/networks/network.bin").unwrap();
-    const CHUNK_SIZE: usize = 512;
+    let portfolio = load_portfolio(&TEST_TICKER, &TEST_NAME);
+    let network = Network::load_from_file("./models/network.bin").unwrap();
+    const CHUNK: usize = 512;
     let num_predictions = 300;
 
-    let stock = portfolio.stock(LEARN_TICKER[0]).expect("Stock not found");
+    let stock = portfolio.stock(TEST_TICKER[0]).expect("Stock not found");
+    let total = stock.entries.len();
+    assert!(
+        total >= CHUNK + num_predictions + 1,
+        "Not enough data for {num_predictions} predictions"
+    );
 
-    let total_entries = stock.entries.len();
-    if total_entries < CHUNK_SIZE {
-        panic!("Not enough historical data for prediction");
-    }
-
-    let mut file = File::create("predictions.csv").unwrap();
+    let mut file = std::fs::File::create("predictions.csv").unwrap();
     writeln!(file, "Date,Predicted Value,Real Value,Error").unwrap();
+
+    let mut total_error = 0.0f32;
+    let mut total_loss = 0.0f32;
+    let mut count = 0usize;
+
     for i in (0..num_predictions).rev() {
-        let entries =
-            &stock.entries[(stock.entries.len() - CHUNK_SIZE - i - 1)..stock.entries.len() - i - 1];
+        let start_idx = total - CHUNK - i - 1;
+        let end_idx = total - i - 1;
+        let entries = &stock.entries[start_idx..end_idx];
 
         let mut test_data =
-            portfolio.get_data(&LEARN_TICKER, entries[0].0, entries.last().unwrap().0);
+            portfolio.get_data(&[TEST_TICKER[0]], entries[0].0, entries.last().unwrap().0);
         test_data.normalize();
 
         let test_entry = &test_data.data[0];
-        assert_eq!(test_entry.training_input.len(), 512);
+        let input = test_entry.to_input();
 
-        let input: Array1<f32> = Array1::from(
-            test_entry
-                .training_input
-                .iter()
-                .map(|e| e.close)
-                .collect::<Vec<f32>>(),
-        );
-
-        let prediction = test_entry.denormalize(network.feed_forward(&input)[[0]]);
+        let output = network.feed_forward(&input)[[0]];
+        let prediction = test_entry.denormalize(output);
         let real = test_entry.denormalize(test_entry.real_value);
+        let error = (prediction - real).abs();
+
+        total_error += error;
+        total_loss += (output - test_entry.real_value).powi(2);
+        count += 1;
+
         writeln!(
             file,
             "{},{},{},{}",
             entries.last().unwrap().0,
             prediction,
             real,
-            (prediction - real).abs()
+            error
         )
         .unwrap();
     }
+
+    let avg_mae = total_error / count as f32;
+    let avg_loss = total_loss / (2.0 * count as f32);
+
+    display::print_box(&[
+        &format!("Test Results ({count} predictions on {})", TEST_TICKER[0]),
+        &format!("Average MAE:  {avg_mae:.4} EUR"),
+        &format!("Average Loss: {avg_loss:.6}"),
+    ]);
 }
 
 #[cfg(feature = "stonks")]
 fn stonks() {
-    let mut portfolio = Portfolio::new();
-    let mut funds = 1000.0;
+    use network::Network;
+    use std::io::Write;
+
+    let portfolio = load_portfolio(&TEST_TICKER[0..2], &TEST_NAME[0..2]);
+    let mut funds = 1000.0f32;
     let initial_funds = funds;
-    let mut shares = 0.0;
-    for (ticker, name) in LEARN_TICKER[0..1].iter().zip(LEARN_NAME[0..1].iter()) {
-        let filename = format!("data/{ticker}.csv");
-        let path = Path::new(&filename);
-        portfolio.load_stock(ticker, name, path);
-    }
+    let mut shares = 0.0f32;
 
-    let network = Network::load_from_file("./data/networks/network.bin").unwrap();
-    const CHUNK_SIZE: usize = 512;
-    let num_predictions = 300;
+    let network = Network::load_from_file("./models/network.bin").unwrap();
+    const CHUNK: usize = 512;
+    let num_predictions = 450;
 
-    let stock = portfolio.stock(LEARN_TICKER[0]).expect("Stock not found");
+    let stock = portfolio.stock(TEST_TICKER[1]).expect("Stock not found");
+    let total = stock.entries.len();
+    assert!(
+        total >= CHUNK + num_predictions + 1,
+        "Not enough data for simulation"
+    );
 
-    let total_entries = stock.entries.len();
-    if total_entries < CHUNK_SIZE {
-        panic!("Not enough historical data for prediction");
-    }
-
-    let mut file = File::create("predictions.csv").unwrap();
+    let mut file = std::fs::File::create("predictions.csv").unwrap();
     writeln!(file, "Date,Predicted Value,Real Value,Error").unwrap();
     let mut last_real: f32 = 0.0;
+
     for i in (0..num_predictions).rev() {
-        let entries =
-            &stock.entries[(stock.entries.len() - CHUNK_SIZE - i - 1)..stock.entries.len() - i - 1];
+        let start_idx = total - CHUNK - i - 1;
+        let end_idx = total - i - 1;
+        let entries = &stock.entries[start_idx..end_idx];
 
         let mut test_data =
-            portfolio.get_data(&LEARN_TICKER, entries[0].0, entries.last().unwrap().0);
+            portfolio.get_data(&[TEST_TICKER[1]], entries[0].0, entries.last().unwrap().0);
         test_data.normalize();
 
         let test_entry = &test_data.data[0];
-        assert_eq!(test_entry.training_input.len(), 512);
-
-        let input: Array1<f32> = Array1::from(
-            test_entry
-                .training_input
-                .iter()
-                .map(|e| e.close)
-                .collect::<Vec<f32>>(),
-        );
+        let input = test_entry.to_input();
 
         let prediction = test_entry.denormalize(network.feed_forward(&input)[[0]]);
         let real = test_entry.denormalize(test_entry.real_value);
@@ -202,32 +197,31 @@ fn stonks() {
             continue;
         }
 
-        println!("Today prize: {last_real}");
-        println!("Tomorrow prediction: {prediction}");
+        println!("Today price: {last_real:.3}");
+        println!("Tomorrow prediction: {prediction:.3}");
 
         if i == 0 {
             funds += shares * last_real;
             shares = 0.0;
-            println!("Simulation ended");
-            println!("Funds: ${funds}");
-            println!("Performance: {}%", ((funds/initial_funds)-1.0)*100.0);
-
         } else if prediction < last_real && shares != 0.0 {
             funds = last_real * shares;
             shares = 0.0;
-            println!("Selling all shares");
-            println!("Funds: ${funds}");
-            println!("Shares: {shares}");
+            println!("Selling all shares | Funds: ${funds:.2}");
         } else if prediction > last_real && funds > 0.0 {
             shares = funds / last_real;
             funds = 0.0;
-            println!("Buying shares");
-            println!("Funds: ${funds}");
-            println!("Shares: {shares}");
+            println!("Buying shares | Shares: {shares:.4}");
         }
         last_real = real;
-        println!("---")
+        println!("---");
     }
+
+    let performance = ((funds / initial_funds) - 1.0) * 100.0;
+    display::print_box(&[
+        "Simulation Complete",
+        &format!("Final Funds: ${funds:.2}"),
+        &format!("Performance: {performance:.2}%"),
+    ]);
 }
 
 fn main() {

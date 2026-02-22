@@ -24,8 +24,8 @@ def plot_predictions(df: pd.DataFrame, ticker_symbol: str):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("stock_prediction_plot.png")
-    print("Graph saved as stock_prediction_plot.png")
+    plt.savefig("docs/prediction_plot.png")
+    print("Graph saved as docs/prediction_plot.png")
 
     plt.figure(figsize=(12, 4))
     plt.plot(error_series, label='Prediction Error', color='red')
@@ -34,8 +34,8 @@ def plot_predictions(df: pd.DataFrame, ticker_symbol: str):
     plt.ylabel("Error (EUR)")
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("stock_prediction_error.png")
-    print("Graph saved as stock_prediction_error.png")
+    plt.savefig("docs/prediction_error.png")
+    print("Graph saved as docs/prediction_error.png")
 
 df = load_predictions("predictions.csv")
 rmse = np.sqrt((df['Error'] ** 2).mean())

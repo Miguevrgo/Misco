@@ -29,13 +29,11 @@ impl Network {
         let mut layers = Vec::new();
         let mut prev_size = input_size;
 
-        // He initialization for ReLU family, Xavier for others
-        let init_std = match activation {
-            Activation::Sigmoid => (1.0 / prev_size as f32).sqrt(),
-            _ => (2.0 / prev_size as f32).sqrt(), // He initialization
-        };
-
         for &size in &layer_sizes {
+            let init_std = match activation {
+                Activation::Sigmoid => (1.0 / prev_size as f32).sqrt(),
+                _ => (2.0 / prev_size as f32).sqrt(), // He initialization
+            };
             layers.push(Layer::new(size, prev_size, init_std));
             prev_size = size;
         }
@@ -49,9 +47,10 @@ impl Network {
 
     pub fn feed_forward(&self, input: &Array1<f32>) -> Array1<f32> {
         let mut activation = input.clone();
-        for layer in self.layers.iter() {
+        let last = self.layers.len() - 1;
+        for (i, layer) in self.layers.iter().enumerate() {
             let z = &layer.weights.dot(&activation) + &layer.bias;
-            activation = self.activate(&z);
+            activation = if i < last { self.activate(&z) } else { z };
         }
         activation
     }
@@ -101,17 +100,16 @@ impl Network {
             }
         }
 
-        println!("\x1b[1;33m╔═════════════════════════════════════════════╗\x1b[0m");
-        println!(
-            "\x1b[1;33m║\x1b[1;34m         Training: SGD with Parameters       \x1b[1;33m║\x1b[0m"
-        );
-        println!(
-            "\x1b[1;33m║\x1b[1;34m   η = {eta:.4} | batch = {mini_batch_size:>3} | epochs = {epochs:>3}   \x1b[1;33m║\x1b[0m"
-        );
-        println!("\x1b[1;33m╚═════════════════════════════════════════════╝\x1b[0m");
+        crate::display::print_box(&[
+            "Training: SGD with Parameters",
+            &format!("eta = {eta:.4} | batch = {mini_batch_size:>3} | epochs = {epochs:>3}"),
+            &format!("samples = {}", training_pairs.len()),
+        ]);
         for i in 0..epochs {
             let start = std::time::Instant::now();
             training_pairs.shuffle(&mut rng);
+            let mut epoch_loss = 0.0;
+            let mut sample_count = 0usize;
             for chunk in training_pairs.chunks(mini_batch_size as usize) {
                 let mut nabla_w: Vec<Array2<f32>> = self
                     .layers
@@ -124,9 +122,10 @@ impl Network {
                     .map(|layer| Array1::zeros(layer.layer_size))
                     .collect();
 
-                // Calculate gradients
                 for (input, target) in chunk {
-                    let (delta_nabla_w, delta_nabla_b) = self.backprop(input, *target);
+                    let (delta_nabla_w, delta_nabla_b, loss) = self.backprop(input, *target);
+                    epoch_loss += loss;
+                    sample_count += 1;
                     for (nb, dnb) in nabla_b.iter_mut().zip(delta_nabla_b.iter()) {
                         *nb += dnb;
                     }
@@ -136,7 +135,6 @@ impl Network {
                     }
                 }
 
-                // Update newtork weights and bias
                 for (layer, (nw, nb)) in self
                     .layers
                     .iter_mut()
@@ -146,20 +144,27 @@ impl Network {
                     layer.bias -= &(eta / mini_batch_size as f32 * nb);
                 }
             }
-            println!("\x1b[1;32mTrained epoch: [{i}|{epochs}]");
+            let avg_loss = epoch_loss / sample_count as f32;
             let estimated = (epochs as u64 - i as u64) * start.elapsed().as_secs();
             println!(
-                "\x1b[1;32mEstimated time: {:?}",
+                "\x1b[1;32mEpoch [{}/{}] | Loss: {:.6} | ETA: {:?}\x1b[0m",
+                i + 1,
+                epochs,
+                avg_loss,
                 Duration::from_secs(estimated)
             );
             if i % 100 == 0 {
-                let path = format!("data/networks/checkpoint{i}");
+                let path = format!("models/checkpoint{i}");
                 self.save_to_file(&path).unwrap();
             }
         }
     }
 
-    fn backprop(&self, input: &Array1<f32>, target: f32) -> (Vec<Array2<f32>>, Vec<Array1<f32>>) {
+    fn backprop(
+        &self,
+        input: &Array1<f32>,
+        target: f32,
+    ) -> (Vec<Array2<f32>>, Vec<Array1<f32>>, f32) {
         let mut nabla_w: Vec<Array2<f32>> = self
             .layers
             .iter()
@@ -171,32 +176,35 @@ impl Network {
             .map(|layer| Array1::zeros(layer.layer_size))
             .collect();
 
+        // Forward pass — linear output on last layer
+        let last = self.layers.len() - 1;
         let mut activations = vec![input.clone()];
         let mut zs = Vec::new();
-        for layer in &self.layers {
+        for (i, layer) in self.layers.iter().enumerate() {
             let z = layer.weights.dot(activations.last().unwrap()) + &layer.bias;
             zs.push(z.clone());
-            activations.push(self.activate(&z));
+            activations.push(if i < last { self.activate(&z) } else { z });
         }
 
+        // Output delta — linear output so derivative = 1.0
         let output = activations.last().unwrap();
-        let delta = output - target; // Cost function derivative
-        let last_z = zs.last().unwrap();
-        let delta = delta * self.activate_prime(last_z);
+        let mut delta = output - target;
+        let loss = delta.mapv(|x| x * x).sum() * 0.5;
 
-        nabla_b[self.layers.len() - 1] = delta.clone();
-        nabla_w[self.layers.len() - 1] = delta.clone().to_shape((delta.len(), 1)).unwrap().dot(
+        nabla_b[last] = delta.clone();
+        nabla_w[last] = delta.clone().to_shape((delta.len(), 1)).unwrap().dot(
             &activations[activations.len() - 2]
                 .clone()
                 .to_shape((1, activations[activations.len() - 2].len()))
                 .unwrap(),
         );
 
-        for l in (0..self.layers.len() - 1).rev() {
+        // Hidden layers
+        for l in (0..last).rev() {
             let z = &zs[l];
             let sp = self.activate_prime(z);
-            let delta_next = &self.layers[l + 1].weights.t().dot(&delta);
-            let delta = delta_next * sp;
+            let delta_next = self.layers[l + 1].weights.t().dot(&delta);
+            delta = delta_next * sp;
 
             nabla_b[l] = delta.clone();
             nabla_w[l] = delta.clone().to_shape((delta.len(), 1)).unwrap().dot(
@@ -207,7 +215,7 @@ impl Network {
             );
         }
 
-        (nabla_w, nabla_b)
+        (nabla_w, nabla_b, loss)
     }
 
     pub fn save_to_file(&self, path: &str) -> io::Result<()> {
