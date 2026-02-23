@@ -3,6 +3,7 @@ use ndarray::{Array1, Array2};
 use rand::{rng, seq::SliceRandom};
 use rand_distr::Distribution;
 use serde::{Deserialize, Serialize};
+use std::fmt::format;
 use std::fs::File;
 use std::io::Read;
 use std::io::{self, Write};
@@ -144,6 +145,134 @@ impl Network {
                     layer.bias -= &(eta / mini_batch_size as f32 * nb);
                 }
             }
+            let avg_loss = epoch_loss / sample_count as f32;
+            let estimated = (epochs as u64 - i as u64) * start.elapsed().as_secs();
+            println!(
+                "\x1b[1;32mEpoch [{}/{}] | Loss: {:.6} | ETA: {:?}\x1b[0m",
+                i + 1,
+                epochs,
+                avg_loss,
+                Duration::from_secs(estimated)
+            );
+            if i % 100 == 0 {
+                let path = format!("models/checkpoint{i}");
+                self.save_to_file(&path).unwrap();
+            }
+        }
+    }
+
+    pub fn adam(&mut self, eta: f32, epochs: usize, mini_batch_size: usize, training_data: Data) {
+        const BETA_1: f32 = 0.9;
+        const BETA_2: f32 = 0.999;
+        const EPSILON: f32 = 1e-8;
+
+        let mut rng = rng();
+        let mut training_pairs: Vec<(Array1<f32>, f32)> = Vec::new();
+
+        for stock_data in &training_data.data {
+            let days = stock_data.training_input.len();
+            // Ensure we have enough days to form at least one input
+            if days >= self.input_size {
+                // Slide a window of size input_size to create input-target pairs
+                for i in 0..=(days - self.input_size) {
+                    let input: Vec<f32> = stock_data.training_input[i..(i + self.input_size)]
+                        .iter()
+                        .map(|entry| entry.close)
+                        .collect();
+                    let target = if i + self.input_size < days {
+                        stock_data.training_input[i + self.input_size].close
+                    } else {
+                        stock_data.real_value
+                    };
+                    training_pairs.push((Array1::from(input), target));
+                }
+            }
+        }
+
+        crate::display::print_box(&[
+            "Training Adam with Parameters:",
+            &format!("eta = {eta:.4} | batch = {mini_batch_size:>3} | epochs = {epochs:>3}"),
+            &format!("samples = {}", training_pairs.len()),
+        ]);
+
+        let mut m_w: Vec<Array2<f32>> = self
+            .layers
+            .iter()
+            .map(|layer| Array2::zeros((layer.layer_size, layer.weights.ncols())))
+            .collect();
+        let mut v_w: Vec<Array2<f32>> = self
+            .layers
+            .iter()
+            .map(|layer| Array2::zeros((layer.layer_size, layer.weights.ncols())))
+            .collect();
+        let mut m_b: Vec<Array1<f32>> = self
+            .layers
+            .iter()
+            .map(|layer| Array1::zeros(layer.layer_size))
+            .collect();
+        let mut v_b: Vec<Array1<f32>> = self
+            .layers
+            .iter()
+            .map(|layer| Array1::zeros(layer.layer_size))
+            .collect();
+        let mut t = 0usize;
+
+        for i in 0..epochs {
+            let start = std::time::Instant::now();
+            training_pairs.shuffle(&mut rng);
+            let mut epoch_loss = 0.0;
+            let mut sample_count = 0usize;
+
+            for chunk in training_pairs.chunks(mini_batch_size) {
+                let mut nabla_w: Vec<Array2<f32>> = self
+                    .layers
+                    .iter()
+                    .map(|layer| Array2::zeros((layer.layer_size, layer.weights.ncols())))
+                    .collect();
+                let mut nabla_b: Vec<Array1<f32>> = self
+                    .layers
+                    .iter()
+                    .map(|layer| Array1::zeros(layer.layer_size))
+                    .collect();
+
+                for (input, target) in chunk {
+                    let (delta_nabla_w, delta_nabla_b, loss) = self.backprop(input, *target);
+                    epoch_loss += loss;
+                    sample_count += 1;
+                    for (nb, dnb) in nabla_b.iter_mut().zip(delta_nabla_b.iter()) {
+                        *nb += dnb;
+                    }
+
+                    for (nw, dnw) in nabla_w.iter_mut().zip(delta_nabla_w.iter()) {
+                        *nw += dnw;
+                    }
+                }
+
+                t += 1;
+                let t_f32 = t as f32;
+                let correction1 = 1.0 - BETA_1.powf(t_f32);
+                let correction2 = 1.0 - BETA_2.powf(t_f32);
+
+                for (idx, layer) in self.layers.iter_mut().enumerate() {
+                    let grad_w = &nabla_w[idx] / (mini_batch_size as f32);
+                    let grad_b = &nabla_b[idx] / (mini_batch_size as f32);
+
+                    m_w[idx] = BETA_1 * &m_w[idx] + (1.0 - BETA_1) * &grad_w;
+                    v_w[idx] = BETA_2 * &v_w[idx] + (1.0 - BETA_2) * &grad_w.mapv(|x| x * x);
+
+                    m_b[idx] = BETA_1 * &m_b[idx] + (1.0 - BETA_1) * &grad_b;
+                    v_b[idx] = BETA_2 * &v_b[idx] + (1.0 - BETA_2) * &grad_b.mapv(|x| x * x);
+
+                    let m_hat_w = &m_w[idx] / correction1;
+                    let v_hat_w = &v_w[idx] / correction2;
+                    let m_hat_b = &m_b[idx] / correction1;
+                    let v_hat_b = &v_b[idx] / correction2;
+
+                    layer.weights -= &(eta * &m_hat_w / (v_hat_w.mapv(|x| x.sqrt()) + EPSILON));
+                    layer.bias -= &(eta * &m_hat_b / (v_hat_b.mapv(|x| x.sqrt()) + EPSILON));
+                }
+            }
+
             let avg_loss = epoch_loss / sample_count as f32;
             let estimated = (epochs as u64 - i as u64) * start.elapsed().as_secs();
             println!(
