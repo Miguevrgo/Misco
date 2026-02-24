@@ -41,17 +41,18 @@ fn print_header() {
 #[cfg(feature = "train")]
 fn train() {
     use entry::Date;
-    use network::{Activation, Network};
+    use network::{Activation, Network, Optimizer};
 
     let portfolio = load_portfolio(&LEARN_TICKER, &LEARN_NAME);
-    let mut training_data = portfolio.get_data(
+    let training_data = portfolio.get_data(
         &LEARN_TICKER,
         Date::new(2008, 7, 28),
         Date::new(2024, 6, 20),
     );
-    training_data.normalize();
+    // NOTE: no global normalize() — build_training_pairs does per-window normalization
+    // to match test-time behavior
     let mut network = Network::new(512, vec![256, 256, 1], Activation::ReLU);
-    network.sgd(0.005, 200, 32, training_data);
+    network.train(Optimizer::Adam, 0.001, 200, 32, training_data);
     network.save_to_file("./models/network.bin").unwrap();
 }
 
@@ -99,7 +100,7 @@ fn test() {
     let stock = portfolio.stock(TEST_TICKER[0]).expect("Stock not found");
     let total = stock.entries.len();
     assert!(
-        total >= CHUNK + num_predictions + 1,
+        total > CHUNK + num_predictions,
         "Not enough data for {num_predictions} predictions"
     );
 
@@ -133,11 +134,8 @@ fn test() {
 
         writeln!(
             file,
-            "{},{},{},{}",
+            "{},{prediction},{real},{error}",
             entries.last().unwrap().0,
-            prediction,
-            real,
-            error
         )
         .unwrap();
     }
@@ -169,7 +167,7 @@ fn stonks() {
     let stock = portfolio.stock(TEST_TICKER[1]).expect("Stock not found");
     let total = stock.entries.len();
     assert!(
-        total >= CHUNK + num_predictions + 1,
+        total > CHUNK + num_predictions,
         "Not enough data for simulation"
     );
 
